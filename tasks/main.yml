@@ -14,32 +14,19 @@
 #   under the License.
 #
 #   Author: David Moreau Simard <dms@redhat.com>
+#   Taken from: https://dmsimard.com/2016/03/15/changing-the-ssh-port-with-ansible/ on Mar 18, 2019
+#   Continued modification by John 'Warthog9' Hawley
 
 # ansible_port can change throughout this role, keep a copy around
 - name: Set configured port fact
   set_fact:
     configured_port: "{{ ansible_port }}"
+  when: ansible_port is defined
 
-# From localhost, check if we're able to reach {{ inventory_hostname }} on
-# port 22
-- name: Check if we're using the default SSH port
-  wait_for:
-    port: "22"
-    state: "started"
-    host: "{{ inventory_hostname }}"
-    connect_timeout: "5"
-    timeout: "10"
-  delegate_to: "localhost"
-  ignore_errors: "yes"
-  register: default_ssh
-
-# If reachable, continue the following tasks with this port
-- name: Set inventory ansible_port to default
+- name: Set configured port fact
   set_fact:
-    ansible_port: "22"
-  when: default_ssh is defined and
-        default_ssh.state == "started"
-  register: ssh_port_set
+    configured_port: "22"
+  when: ansible_port is undefined
 
 # If unreachable on port 22, check if we're able to reach
 # {{ inventory_hostname }} on {{ ansible_port }} provided by the inventory
