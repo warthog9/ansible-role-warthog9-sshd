@@ -101,12 +101,93 @@
     gather_subset:
       - min
 
+- name: Make sure policycoreutils-python is installed for selinux manipulation
+  package:
+    name: [ 'policycoreutils-python' ]
+    state: present
+  when: ( ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux' ) and ansible_facts['distribution_major_version']|int <= 7
+  notify: "Restart sshd"
+
+- name: Make sure policycoreutils-python-utils is installed for selinux manipulation
+  package:
+    name: [ 'policycoreutils-python-utils' ]
+    state: present
+  when: ansible_distribution == 'Fedora' or
+        ( ( ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux' ) and ansible_facts['distribution_major_version']|int > 7 )
+  notify: "Restart sshd"
+
+- name: Ensure nftables is installed
+  package:
+    name: [ 'nftables' ]
+    state: present
+
 - name: Setup selinux for alternate SSH port
   seport:
     ports: "{{ configured_port }}"
     proto: "tcp"
     setype: "ssh_port_t"
     state: "present"
+  notify: "Restart sshd"
+  when: ansible_distribution == 'Fedora' or ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux'
+
+- name: Configure FirewallD - Fedora
+  firewalld:
+    port: "{{ ansible_port }}/tcp"
+    zone: public
+    state: enabled
+  ignore_errors: "yes"
+  when: '"firewalld" in ansible_facts.packages'
+
+- name: Lets just make sure that /etc/nftables exists
+  file:
+    path: /etc/nftables
+    state: directory
+    mode: 0755
+
+- name: Copy over the relevant nftables firewall config fragment - Extra Port
+  template:
+    src: ssh.nft.j2
+    dest: /etc/nftables/sshd.conf
+  when: ansible_port is defined
+        and
+        ansible_port != "22"
+        and
+        (
+                ( ansible_distribution == 'Fedora' and ansible_facts['distribution_major_version']|int < 31 )
+                or
+                ansible_distribution == 'CentOS'
+                or
+                ansible_distribution == 'Red Hat Enterprise Linux'
+        )
+
+- name: Copy over the relevant nftables firewall config fragment - Extra Port
+  template:
+    src: ssh.nft.newformat.j2
+    dest: /etc/nftables/sshd.conf
+  when: ansible_port is defined
+        and
+        ansible_port != "22"
+        and
+        ansible_distribution == 'Fedora'
+        and
+        ansible_facts['distribution_major_version']|int >= 31
+
+
+- name: Copy over the relevant nftables firewall config fragment - Standard Port
+  template:
+    src: ssh-stdport.nft.j2
+    dest: /etc/nftables/sshd.conf
+  when: ansible_port is defined
+        and
+        ansible_port == "22"
+
+#- name: Include the baseline config in /etc/sysconfig/nftables
+#  lineinfile:
+#    dest: /etc/sysconfig/nftables.conf
+#    line: "include \"/etc/nftables/baseline.conf\""
+#    regexp: "^include \"/etc/nftables/baseline.conf\""
+#    state: present
+#  when: '"nftables" in ansible_facts.packages and ( ansible_distribution == "Fedora" or ansible_distribution == "CentOS" or ansible_distribution == "Red Hat Enterprise Linux" )'
 
 # We notified "Restart sshd" if we modified the sshd config.
 # By calling flush_handlers, we make sure the handler is run *right now*
