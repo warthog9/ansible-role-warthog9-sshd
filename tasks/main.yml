@@ -92,6 +92,15 @@
     line: "Port {{ configured_port }}"
   notify: "Restart sshd"
 
+- name: Gather package facts for later
+  package_facts:
+    manager: auto
+
+- name: Gather OS facts now
+  setup:
+    gather_subset:
+      - min
+
 - name: Setup selinux for alternate SSH port
   seport:
     ports: "{{ configured_port }}"
