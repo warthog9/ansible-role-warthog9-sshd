@@ -88,7 +88,7 @@
 - name: Setup alternate SSH port
   lineinfile:
     dest: "/etc/ssh/sshd_config"
-    regexp: "^Port"
+    regexp: "^#*Port[ \t]*"
     line: "Port {{ configured_port }}"
   notify: "Restart sshd"
 
