@@ -2,3 +2,10 @@
   service:
     name: sshd
     state: restarted
+
+- name: Restart nftables
+  service:
+    name: nftables
+    state: restarted
+  ignore_errors: "yes"
+  when: '"nftables" in ansible_facts.packages'
