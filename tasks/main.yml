@@ -41,8 +41,6 @@
   delegate_to: "localhost"
   ignore_errors: "yes"
   register: configured_ssh
-  when: default_ssh is defined and
-        default_ssh.state is undefined
 
 # If {{ ansible_port }} is reachable, we don't need to do anything special
 - name: SSH port is configured properly
@@ -51,6 +49,30 @@
   when: configured_ssh is defined and
         configured_ssh.state is defined and
         configured_ssh.state == "started"
+  register: ssh_port_set
+
+# From localhost, check if we're able to reach {{ inventory_hostname }} on
+# port 22
+- name: Check if we're using the default SSH port
+  wait_for:
+    port: "22"
+    state: "started"
+    host: "{{ inventory_hostname }}"
+    connect_timeout: "5"
+    timeout: "10"
+  delegate_to: "localhost"
+  ignore_errors: "yes"
+  register: default_ssh
+  when: configured_ssh is defined and
+        configured_ssh.state is undefined
+
+# If reachable, continue the following tasks with this port
+- name: Set inventory ansible_port to default
+  set_fact:
+    ansible_port: "22"
+  when: default_ssh is defined and
+        default_ssh.state is defined and
+        default_ssh.state == "started"
   register: ssh_port_set
 
 # If the SSH port is neither the default or the configured, give up.
