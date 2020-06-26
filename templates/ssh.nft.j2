@@ -1,0 +1,11 @@
+add rule inet filter input tcp dport { ssh, {{ ansible_port }} } accept
+
+#table ip ssh {
+#	chain input {
+#		# Assign a high priority to reject as fast as possible and avoid more complex rule evaluation
+#		# default priority is 0, high is higher priority. Lower is lower priority
+#		type filter hook input priority 1;
+#
+#		tcp dport { ssh, {{ ansible_port }} accept	
+#	}
+#}
